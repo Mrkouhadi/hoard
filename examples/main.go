@@ -67,4 +67,30 @@ func main() {
 	} else {
 		fmt.Println("name does not exist or has expired")
 	}
+
+	// Store a value
+	cache.Store("foo", "bar", time.Minute)
+
+	// Update the value
+	err := cache.Update("foo", "baz", time.Minute)
+	if err != nil {
+		fmt.Println("Update error:", err)
+	}
+
+	// Fetch the updated value
+	value, exists, err := cache.Fetch("foo")
+	if err != nil {
+		fmt.Println("Fetch error:", err)
+	}
+	fmt.Println(value, exists) // Output: baz, true
+
+	// Delete the value
+	cache.Delete("foo")
+
+	// Fetch after deletion
+	value, exists, err = cache.Fetch("foo")
+	if err != nil {
+		fmt.Println("Fetch error:", err)
+	}
+	fmt.Println(value, exists) // Output: <nil>, false
 }

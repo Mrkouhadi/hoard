@@ -74,7 +74,7 @@ func TestLRUEviction(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Store failed: %v", err)
 	}
-	err = cache.Store("baz", 42, time.Second*10)
+	err = cache.Store("kouhadi", 42, time.Second*10)
 	if err != nil {
 		t.Fatalf("Store failed: %v", err)
 	}
@@ -85,19 +85,19 @@ func TestLRUEviction(t *testing.T) {
 		t.Fatalf("Fetch failed: %v", err)
 	}
 
-	// Store a third item (should evict "baz" as it is the least recently used)
+	// Store a third item (should evict "kouhadi" as it is the least recently used)
 	err = cache.Store("qux", 3.14, time.Second*10)
 	if err != nil {
 		t.Fatalf("Store failed: %v", err)
 	}
 
-	// Fetch "baz" (should not exist)
-	_, exists, err := cache.Fetch("baz")
+	// Fetch "kouhadi" (should not exist)
+	_, exists, err := cache.Fetch("kouhadi")
 	if err != nil {
 		t.Fatalf("Fetch failed: %v", err)
 	}
 	if exists {
-		t.Fatal("Expected 'baz' to be evicted")
+		t.Fatal("Expected 'kouahdi' to be evicted")
 	}
 
 	// Fetch "aboubakr" (should still exist)
@@ -183,4 +183,134 @@ func TestConcurrentAccess(t *testing.T) {
 		}(i)
 	}
 	wg.Wait()
+}
+
+// testing the update of a piece of data
+func TestUpdate(t *testing.T) {
+	cache := NewCache(10, 1000, time.Minute)
+
+	// Store a value
+	err := cache.Store("haroun", 30, time.Minute)
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+
+	// Update the value
+	err = cache.Update("haroun", "kouhadi", time.Minute)
+	if err != nil {
+		t.Fatalf("Update failed: %v", err)
+	}
+
+	// Fetch the updated value
+	value, exists, err := cache.Fetch("haroun")
+	if err != nil {
+		t.Fatalf("Fetch failed: %v", err)
+	}
+	if !exists {
+		t.Error("Expected key 'haroun' to exist, but it does not")
+	}
+	if value != "kouhadi" {
+		t.Errorf("Expected value 'kouhadi', got '%v'", value)
+	}
+
+	// Test updating a non-existent key
+	err = cache.Update("nonexistent", "value", time.Minute)
+	if err == nil {
+		t.Error("Expected error when updating a non-existent key, but got nil")
+	}
+}
+
+// testing the deleting of a piece of data
+func TestDelete(t *testing.T) {
+	cache := NewCache(10, 1000, time.Minute)
+
+	// Store a value
+	err := cache.Store("haroun", 30, time.Minute)
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+
+	// Delete the value
+	cache.Delete("haroun")
+
+	// Fetch the deleted value
+	value, exists, err := cache.Fetch("haroun")
+	if err != nil {
+		t.Fatalf("Fetch failed: %v", err)
+	}
+	if exists {
+		t.Error("Expected key 'haroun' to be deleted, but it still exists")
+	}
+	if value != nil {
+		t.Errorf("Expected value to be nil, got '%v'", value)
+	}
+
+	// Test deleting a non-existent key (should not panic or error)
+	cache.Delete("nonexistent")
+}
+
+// testing the concurrent update and delete
+func TestConcurrentUpdateDelete(t *testing.T) {
+	cache := NewCache(10, 1000, time.Minute)
+
+	// Store a value
+	err := cache.Store("haroun", 30, time.Minute)
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Concurrently update and delete the same key
+	go func() {
+		defer wg.Done()
+		err := cache.Update("haroun", "kouhadi", time.Minute)
+		if err != nil {
+			t.Logf("Update failed: %v", err)
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		cache.Delete("haroun")
+	}()
+
+	wg.Wait()
+
+	// Fetch the key to check the final state
+	value, exists, err := cache.Fetch("haroun")
+	if err != nil {
+		t.Fatalf("Fetch failed: %v", err)
+	}
+	t.Logf("Final state: value=%v, exists=%v", value, exists)
+}
+
+// testing the cleaning up of cache
+func TestCleanupAllParallel(t *testing.T) {
+	cache := NewCache(10, 1000, time.Minute)
+
+	// Store some values
+	for i := 0; i < 1000; i++ {
+		key := fmt.Sprintf("key%d", i)
+		err := cache.Store(key, "value", time.Minute)
+		if err != nil {
+			t.Fatalf("Store failed: %v", err)
+		}
+	}
+
+	// Cleanup all data
+	cache.CleanupAll()
+
+	// Verify that the cache is empty
+	for i := 0; i < 1000; i++ {
+		key := fmt.Sprintf("key%d", i)
+		value, exists, err := cache.Fetch(key)
+		if err != nil {
+			t.Fatalf("Fetch failed: %v", err)
+		}
+		if exists || value != nil {
+			t.Errorf("Expected cache to be empty after cleanup, but key '%s' still exists", key)
+		}
+	}
 }

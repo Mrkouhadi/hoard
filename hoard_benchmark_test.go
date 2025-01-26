@@ -1,7 +1,9 @@
 package hoard
 
 import (
+	"fmt"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 )
@@ -70,5 +72,107 @@ func BenchmarkEvictLRU(b *testing.B) {
 		key := "kouhadi" + strconv.Itoa(1000+i) // Add some new data to trigger eviction :)
 		value := "aboubakr-essaddik" + strconv.Itoa(1000+i)
 		_ = cache.Store(key, value, time.Second*10)
+	}
+}
+
+// measuring the update of data
+func BenchmarkUpdate(b *testing.B) {
+	cache := NewCache(10, 1000, time.Minute)
+
+	// Store a value to update later
+	err := cache.Store("foo", "bar", time.Minute)
+	if err != nil {
+		b.Fatalf("Store failed: %v", err)
+	}
+
+	b.ResetTimer() // Reset the timer to exclude setup time
+
+	for i := 0; i < b.N; i++ {
+		err := cache.Update("foo", "baz", time.Minute)
+		if err != nil {
+			b.Fatalf("Update failed: %v", err)
+		}
+	}
+}
+
+// measuring the deletion of data
+
+func BenchmarkDelete(b *testing.B) {
+	cache := NewCache(10, 1000, time.Minute)
+
+	// Pre-fill the cache with keys to delete
+	keys := make([]string, b.N)
+	for i := 0; i < b.N; i++ {
+		keys[i] = fmt.Sprintf("key%d", i)
+		err := cache.Store(keys[i], "value", time.Minute)
+		if err != nil {
+			b.Fatalf("Store failed: %v", err)
+		}
+	}
+
+	b.ResetTimer() // Reset the timer to exclude setup time
+
+	for i := 0; i < b.N; i++ {
+		cache.Delete(keys[i])
+	}
+}
+
+// measuring the concurrent deletion and update of data
+func BenchmarkConcurrentUpdateDelete(b *testing.B) {
+	cache := NewCache(10, 1000, time.Minute)
+
+	// Pre-fill the cache with keys
+	keys := make([]string, b.N)
+	for i := 0; i < b.N; i++ {
+		keys[i] = fmt.Sprintf("key%d", i)
+		err := cache.Store(keys[i], "value", time.Minute)
+		if err != nil {
+			b.Fatalf("Store failed: %v", err)
+		}
+	}
+
+	b.ResetTimer() // Reset the timer to exclude setup time
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Concurrently update and delete keys
+	go func() {
+		defer wg.Done()
+		for i := 0; i < b.N; i++ {
+			err := cache.Update(keys[i], "newvalue", time.Minute)
+			if err != nil {
+				b.Logf("Update failed: %v", err)
+			}
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		for i := 0; i < b.N; i++ {
+			cache.Delete(keys[i])
+		}
+	}()
+
+	wg.Wait()
+}
+
+// measuring the cleaning up of cache
+func BenchmarkCleanupAll(b *testing.B) {
+	cache := NewCache(10, 1000, time.Minute)
+
+	// Pre-fill the cache with keys
+	for i := 0; i < 1000; i++ {
+		key := fmt.Sprintf("key%d", i)
+		err := cache.Store(key, "value", time.Minute)
+		if err != nil {
+			b.Fatalf("Store failed: %v", err)
+		}
+	}
+
+	b.ResetTimer() // Reset the timer to exclude setup time
+
+	for i := 0; i < b.N; i++ {
+		cache.CleanupAll()
 	}
 }

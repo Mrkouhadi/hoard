@@ -185,3 +185,71 @@ func (c *Cache) cleanupShard(shard *CacheShard) {
 		return true
 	})
 }
+
+// Update updates the value of an existing key in the cache.
+func (c *Cache) Update(key string, value interface{}, ttl time.Duration) error {
+	shard := c.getShard(key)
+	expiration := time.Now().Add(ttl).UnixNano()
+
+	// Serialize the value
+	serializedValue, err := serialize(value)
+	if err != nil {
+		return fmt.Errorf("serialization error: %v", err)
+	}
+
+	shard.lruMu.Lock()
+	defer shard.lruMu.Unlock()
+
+	// Check if the key exists
+	item, exists := shard.data.Load(key)
+	if !exists {
+		return fmt.Errorf("key not found: %s", key)
+	}
+
+	// Update the existing item
+	cacheItem := item.(*CacheItem)
+	cacheItem.Value = serializedValue
+	cacheItem.Expiration = expiration
+
+	// Move the item to the front of the LRU list
+	shard.lruList.MoveToFront(cacheItem.LRUElement)
+
+	return nil
+}
+
+// Delete removes a key-value pair from the cache.
+func (c *Cache) Delete(key string) {
+	shard := c.getShard(key)
+
+	shard.lruMu.Lock()
+	defer shard.lruMu.Unlock()
+
+	// Remove the key if it exists
+	if item, exists := shard.data.Load(key); exists {
+		shard.lruList.Remove(item.(*CacheItem).LRUElement)
+		shard.data.Delete(key)
+	}
+}
+
+// CleanupAll clears all data stored in the cache.
+func (c *Cache) CleanupAll() {
+	var wg sync.WaitGroup
+	wg.Add(len(c.shards))
+
+	for _, shard := range c.shards {
+		go func(shard *CacheShard) {
+			defer wg.Done()
+			shard.lruMu.Lock()
+			shard.data.Range(func(key, value interface{}) bool {
+				shard.data.Delete(key)
+				return true
+			})
+			// Reset the LRU list
+			shard.lruList.Init()
+
+			shard.lruMu.Unlock()
+		}(shard)
+	}
+
+	wg.Wait()
+}
