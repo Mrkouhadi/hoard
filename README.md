@@ -93,8 +93,6 @@ Here are the latest benchmark results for the caching library:
 | **StoreAndFetch** | 1.26 µs/op         | 469 B/op          | 20 allocs/op              |
 | **EvictLRU**      | 1.27 µs/op         | 423 B/op          | 16 allocs/op              |
 
-````
-
 ### Concurrent Access
 
 Hoard is designed for concurrent use. You can safely call `Store`, `Fetch`, and `Delete` from multiple goroutines:
@@ -110,7 +108,7 @@ go func() {
 		fmt.Println("Fetched value:", value)
 	}
 }()
-````
+```
 
 ---
 
