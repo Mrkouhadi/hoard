@@ -176,3 +176,23 @@ func BenchmarkCleanupAll(b *testing.B) {
 		cache.CleanupAll()
 	}
 }
+
+//measuring fetch all data at once
+func BenchmarkFetchAll(b *testing.B) {
+	cache := NewCache(10, 1000, time.Minute)
+
+	// Pre-fill the cache with keys
+	for i := 0; i < 1000; i++ {
+		key := fmt.Sprintf("key%d", i)
+		err := cache.Store(key, "value", time.Minute)
+		if err != nil {
+			b.Fatalf("Store failed: %v", err)
+		}
+	}
+
+	b.ResetTimer() // Reset the timer to exclude setup time
+
+	for i := 0; i < b.N; i++ {
+		cache.FetchAll()
+	}
+}

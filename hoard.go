@@ -253,3 +253,65 @@ func (c *Cache) CleanupAll() {
 
 	wg.Wait()
 }
+
+// FetchAll retrieves all key-value pairs from the cache concurrently.
+func (c *Cache) FetchAll() map[string]interface{} {
+	result := make(map[string]interface{})
+	resultMu := sync.Mutex{} // Mutex to protect the result map
+
+	var wg sync.WaitGroup
+	wg.Add(len(c.shards))
+
+	for _, shard := range c.shards {
+		go func(shard *CacheShard) {
+			defer wg.Done()
+
+			// Local map to store key-value pairs from this shard
+			localResult := make(map[string]interface{})
+			localResultMu := sync.Mutex{} // Mutex to protect the local result map
+
+			shard.lruMu.Lock()
+			defer shard.lruMu.Unlock()
+
+			var deserializeWg sync.WaitGroup
+			deserializeWg.Add(shard.lruList.Len())
+
+			shard.data.Range(func(key, value interface{}) bool {
+				go func(key, value interface{}) {
+					defer deserializeWg.Done()
+
+					cacheItem := value.(*CacheItem)
+
+					// Check if the item has expired
+					if time.Now().UnixNano() > cacheItem.Expiration {
+						return // Skip expired items
+					}
+
+					// Deserialize the value
+					deserializedValue, err := deserialize(cacheItem.Value)
+					if err != nil {
+						return // Skip items with deserialization errors
+					}
+
+					// Add to the local result
+					localResultMu.Lock()
+					localResult[key.(string)] = deserializedValue
+					localResultMu.Unlock()
+				}(key, value)
+				return true
+			})
+
+			deserializeWg.Wait()
+
+			// Merge the local result into the global result
+			resultMu.Lock()
+			for k, v := range localResult {
+				result[k] = v
+			}
+			resultMu.Unlock()
+		}(shard)
+	}
+
+	wg.Wait()
+	return result
+}

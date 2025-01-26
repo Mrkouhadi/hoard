@@ -314,3 +314,37 @@ func TestCleanupAllParallel(t *testing.T) {
 		}
 	}
 }
+
+// testing fetching all data at once
+func TestFetchAll(t *testing.T) {
+	cache := NewCache(10, 1000, time.Minute)
+
+	// Store some values
+	err := cache.Store("foo", "bar", time.Minute)
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+	err = cache.Store("baz", "qux", time.Minute)
+	if err != nil {
+		t.Fatalf("Store failed: %v", err)
+	}
+
+	// Fetch all data
+	result := cache.FetchAll()
+
+	// Verify the results
+	expected := map[string]interface{}{
+		"foo": "bar",
+		"baz": "qux",
+	}
+
+	if len(result) != len(expected) {
+		t.Errorf("Expected %d items, got %d", len(expected), len(result))
+	}
+
+	for k, v := range expected {
+		if result[k] != v {
+			t.Errorf("Expected value '%v' for key '%s', got '%v'", v, k, result[k])
+		}
+	}
+}

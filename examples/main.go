@@ -12,85 +12,84 @@ func main() {
 	cache := hoard.NewCache(5, 10000, time.Second*10)
 
 	// store items
-	cache.Store("age", 33, time.Second*3)
-	cache.Store("name", "aboubakr", time.Second*5)
+	cache.Store("name", "Aboubakr Kouhadi", time.Second*5)
+	cache.Store("email", "bryan@bryan.com", time.Second*5)
+	cache.Store("age", 33, time.Second*5)
+	cache.Store("profession", "English Teacher", time.Second*5)
+	cache.Store("hobbies", "playing Guitar and soccer, swimming, and coding", time.Second*5)
 
-	// add a small delay to ensure the items are stored
-	time.Sleep(100 * time.Millisecond)
+	// fetch all data
+	data := cache.FetchAll()
+	fmt.Println("fetched all data: ", data)
 
-	// fetch and print the value of "age" (should exist)
-	if value, exists, err := cache.Fetch("age"); exists {
-		if err == nil {
-			fmt.Println("Fetched age:", value)
-		} else {
-			fmt.Println("Error fetching age:", err)
-		}
-	} else {
-		fmt.Println("age does not exist or has expired")
-	}
-
-	// wait for 4 seconds to let "age" expire but "name" still exists
-	time.Sleep(4 * time.Second)
-
-	// Fetch and print the value of "age" again (should be expired)
-	if value, exists, err := cache.Fetch("age"); exists {
-		if err == nil {
-			fmt.Println("Fetched age:", value)
-		} else {
-			fmt.Println("Error fetching age:", err)
-		}
-	} else {
-		fmt.Println("age does not exist or has expired")
-	}
-
-	// fetch and print the value of "name" (should still exist)
+	// fetch a single piece of data
 	if value, exists, err := cache.Fetch("name"); exists {
 		if err == nil {
-			fmt.Println("Fetched name:", value)
+			fmt.Println("Fetched name: ", value)
 		} else {
-			fmt.Println("Error fetching name:", err)
+			fmt.Println("Error fetching name: ", err)
 		}
 	} else {
-		fmt.Println("name does not exist or has expired")
+		fmt.Println("age does not exist or has expired or deleted...")
 	}
 
-	// wait for 2 more seconds to let "name" expire
-	time.Sleep(2 * time.Second)
-
-	// fetch and print the value of "name" again (should be expired)
-	if value, exists, err := cache.Fetch("name"); exists {
-		if err == nil {
-			fmt.Println("Fetched name:", value)
-		} else {
-			fmt.Println("Error fetching name:", err)
-		}
-	} else {
-		fmt.Println("name does not exist or has expired")
-	}
-
-	// Store a value
-	cache.Store("foo", "bar", time.Minute)
-
-	// Update the value
-	err := cache.Update("foo", "baz", time.Minute)
+	// Update a single piece of data
+	err := cache.Update("name", "bryan bryan", time.Minute)
 	if err != nil {
 		fmt.Println("Update error:", err)
 	}
 
-	// Fetch the updated value
-	value, exists, err := cache.Fetch("foo")
-	if err != nil {
-		fmt.Println("Fetch error:", err)
+	// fetch the updated value name
+	if value, exists, err := cache.Fetch("name"); exists {
+		if err == nil {
+			fmt.Println("Fetched updated name:", value)
+		} else {
+			fmt.Println("Error fetching name:", err)
+		}
+	} else {
+		fmt.Println("name does not exist or has expired or deleted...")
 	}
-	fmt.Println(value, exists) // Output: baz, true
 
 	// Delete the value
-	cache.Delete("foo")
+	cache.Delete("profession")
 
-	// Fetch after deletion
-	value, exists, err = cache.Fetch("foo")
+	// fetch the deleted value profession
+	if value, exists, err := cache.Fetch("profession"); exists {
+		if err == nil {
+			fmt.Println("Fetched profession after it's been deleted:", value)
+		} else {
+			fmt.Println("Error fetching profession:", err)
+		}
+	} else {
+		fmt.Println("profession does not exist or has expired or deleted...")
+	}
+	// clean up all data
+	cache.CleanupAll()
+	fmt.Println("data has been cleaned up....")
+	// fetch age after clean up all data
+	value, exists, err := cache.Fetch("age")
 	if err != nil {
 		fmt.Println("Fetch error:", err)
 	}
-	fmt.Println(value, exists) // Output: <nil>, false
+	fmt.Println(value, exists)
+
+	// fetch all data after cleanup
+	alldata := cache.FetchAll()
+	fmt.Println("fetched all data: ", alldata)
+
+	// store again some data
+	cache.Store("test", "automatic deletion after expiration", time.Second)
+	// wait for some time and
+	time.Sleep(time.Millisecond * 1200)
+	// fetch expired data
+	if value, exists, err := cache.Fetch("test"); exists {
+		if err == nil {
+			fmt.Println("Fetched expired test:", value)
+		} else {
+			fmt.Println("Error fetching test:", err)
+		}
+	} else {
+		fmt.Println("test does not exist or has expired or deleted...")
+	}
+	fmt.Print("END")
 }
