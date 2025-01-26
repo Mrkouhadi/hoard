@@ -23,7 +23,7 @@ type CacheShard struct {
 	lruMu   sync.Mutex
 }
 
-// Cache represents the inmemory cache with sharding.
+// Cache represents the in-memory cache with sharding.
 type Cache struct {
 	shards           []*CacheShard
 	numShards        int
@@ -38,7 +38,7 @@ func NewCache(numShards, maxItemsPerShard int, cleanupInterval time.Duration) *C
 		panic("number of shards must be greater than 0")
 	}
 	if maxItemsPerShard <= 0 {
-		panic(" maximum items per shard must be greater than 0")
+		panic("maximum items per shard must be greater than 0")
 	}
 	shards := make([]*CacheShard, numShards)
 	for i := range shards {

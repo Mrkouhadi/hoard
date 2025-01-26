@@ -39,27 +39,40 @@ import (
 )
 
 func main() {
-	// Create a new cache with 5 shards, max 10000 items per shard, and a cleanup interval of 10 minute
-	cache := hoard.NewCache(5, 10000, time.Minute*10)
+	// create a cache with 5 shards, maximum of 10000 items per shard, and a cleanup interval of 10 seconds
+	cache := hoard.NewCache(5, 10000, time.Second*10)
 
-	// Store an item with a TTL of 10 seconds
-	cache.Store("foo", "bar", 10*time.Second)
+	// store some data
+	cache.Store("name", "Aboubakr Kouhadi", time.Second*5)
+	cache.Store("age", 33, time.Second*5)
+	cache.Store("profession", "English Teacher", time.Second*5)
+	cache.Store("hobbies", "playing Guitar and soccer, swimming, and coding", time.Second*5)
 
-	// Fetch the item
-	value, exists, err := cache.Fetch("foo")
-	if err != nil {
-		fmt.Println("Error fetching item:", err)
-	} else if exists {
-		fmt.Println("Fetched value:", value) // Output: Fetched value: bar
+	// fetch all cached data
+	data := cache.FetchAll()
+
+	// fetch a single piece of data
+	if value, exists, err := cache.Fetch("name"); exists {
+		if err == nil {
+			fmt.Println("Fetched name: ", value)
+		} else {
+			fmt.Println("Error fetching name: ", err)
+		}
 	} else {
-		fmt.Println("Item not found or expired")
+		fmt.Println("age does not exist or has expired or deleted...")
 	}
 
-	// Delete an item
-	cache.Delete("foo")
+	// Update a piece of data
+	err := cache.Update("name", "bryan bryan", time.Minute)
+	if err != nil {
+		fmt.Println("Update error:", err)
+	}
 
-	// Clear the cache
-	cache.Clear()
+	// Delete the value
+	cache.Delete("profession")
+
+	// clean up all data
+	cache.CleanupAll()
 }
 ```
 
@@ -80,19 +93,7 @@ Here are the latest benchmark results for the caching library:
 | **StoreAndFetch** | 1.26 µs/op         | 469 B/op          | 20 allocs/op              |
 | **EvictLRU**      | 1.27 µs/op         | 423 B/op          | 16 allocs/op              |
 
----
-
-## Advanced Usage 🛠️
-
-### Custom Hash Function
-
-You can provide a custom hash function when creating the cache:
-
-```go
-cache := hoard.NewCacheWithHash(4, 1000, time.Minute, func() hash.Hash32 {
-	return fnv.New32a() // Use FNV-1a hash
-})
-```
+````
 
 ### Concurrent Access
 
@@ -109,7 +110,7 @@ go func() {
 		fmt.Println("Fetched value:", value)
 	}
 }()
-```
+````
 
 ---
 
@@ -157,4 +158,4 @@ go get github.com/mrkouhadi/hoard
 
 ---
 
-Happy caching! 🚀
+HAPPY CACHING ! 🚀
