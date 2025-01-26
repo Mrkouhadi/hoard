@@ -177,7 +177,7 @@ func BenchmarkCleanupAll(b *testing.B) {
 	}
 }
 
-//measuring fetch all data at once
+// measuring fetch all data at once
 func BenchmarkFetchAll(b *testing.B) {
 	cache := NewCache(10, 1000, time.Minute)
 
