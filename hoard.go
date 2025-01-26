@@ -70,6 +70,12 @@ func (c *Cache) getShard(key string) *CacheShard {
 }
 
 // Store inserts a piece of data into the cache.
+var cacheItemPool = sync.Pool{
+	New: func() interface{} {
+		return &CacheItem{}
+	},
+}
+
 func (c *Cache) Store(key string, value interface{}, ttl time.Duration) error {
 	shard := c.getShard(key)
 	expiration := time.Now().Add(ttl).UnixNano()
@@ -88,13 +94,12 @@ func (c *Cache) Store(key string, value interface{}, ttl time.Duration) error {
 		shard.lruList.Remove(item.(*CacheItem).LRUElement)
 	}
 
-	// Add the new item
-	lruElement := shard.lruList.PushFront(key)
-	cacheItem := &CacheItem{
-		Value:      serializedValue,
-		Expiration: expiration,
-		LRUElement: lruElement,
-	}
+	// Get a CacheItem from the pool
+	cacheItem := cacheItemPool.Get().(*CacheItem)
+	cacheItem.Value = serializedValue
+	cacheItem.Expiration = expiration
+	cacheItem.LRUElement = shard.lruList.PushFront(key)
+
 	shard.data.Store(key, cacheItem)
 
 	// Evict the least recently used item if the cache is full
