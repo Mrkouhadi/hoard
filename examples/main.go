@@ -19,8 +19,9 @@ func main() {
 	cache.Store("hobbies", "playing Guitar and soccer, swimming, and coding", time.Second*5)
 
 	// fetch all data
-	data := cache.FetchAll()
-	fmt.Println("fetched all data: ", data)
+	cache.Iterate(func(key string, value []byte) {
+		fmt.Printf("key %s - Value %s", key, string(value))
+	})
 
 	// fetch a single piece of data
 	if value, exists, err := cache.Fetch("name"); exists {
@@ -74,9 +75,10 @@ func main() {
 	fmt.Println(value, exists)
 
 	// fetch all data after cleanup
-	alldata := cache.FetchAll()
-	fmt.Println("fetched all data: ", alldata)
-
+	cache.Iterate(func(key string, value []byte) {
+		fmt.Printf("key: %s -  Value: %s", key, string(value))
+	})
+	
 	// store again some data
 	cache.Store("test", "automatic deletion after expiration", time.Second)
 	// wait for some time and

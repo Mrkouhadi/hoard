@@ -184,25 +184,26 @@ func (c *Cache) cleanupShard(shard *CacheShard) {
 	}
 }
 
-//  FetchAll
+//  Iterate
 
-func (c *Cache) FetchAll() map[string]interface{} {
-	result := make(map[string]interface{})
+func (c *Cache) Iterate(fn func(key string, value []byte)) {
+	now := time.Now().UnixNano()
+	var wg sync.WaitGroup
+	wg.Add(len(c.shards))
 
 	for _, shard := range c.shards {
-		shard.mu.RLock()
-		for key, item := range shard.data {
-			if time.Now().UnixNano() > item.Expiration {
-				continue
+		go func(s *CacheShard) {
+			defer wg.Done()
+			s.mu.RLock()
+			for k, item := range s.data {
+				if now <= item.Expiration {
+					fn(k, item.Value)
+				}
 			}
-			val, err := deserialize(item.Value)
-			if err == nil {
-				result[key] = val
-			}
-		}
-		shard.mu.RUnlock()
+			s.mu.RUnlock()
+		}(shard)
 	}
-	return result
+	wg.Wait()
 }
 
 //  CleanupAll

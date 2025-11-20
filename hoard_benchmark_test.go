@@ -2,197 +2,144 @@ package hoard
 
 import (
 	"fmt"
+	"math/rand"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
 )
 
-// measuring the performance of the Store method.
-func BenchmarkStore(b *testing.B) {
-	cache := NewCache(5, 10000, time.Minute)
+// Generate a large set of keys and values for heavy load
+const (
+	NumKeys     = 1_000_000
+	Concurrency = 64
+	ValueSize   = 256 // bytes
+)
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		key := "kouhadi" + strconv.Itoa(i)
-		value := "aboubakr-essaddik" + strconv.Itoa(i)
-		_ = cache.Store(key, value, time.Second*10)
+// Helper to generate a random value of fixed size
+func randomValue(size int) string {
+	bytes := make([]byte, size)
+	for i := range bytes {
+		bytes[i] = byte('a' + rand.Intn(26))
 	}
+	return string(bytes)
 }
 
-// measuring the performance of the Fetch method.
-func BenchmarkFetch(b *testing.B) {
-	cache := NewCache(5, 10000, time.Minute)
+// Benchmark storing heavy data
+func BenchmarkStoreHeavy(b *testing.B) {
+	cache := NewCache(16, NumKeys, time.Minute)
 
-	// inset some data
-	for i := 0; i < 1000; i++ {
-		key := "kouhadi" + strconv.Itoa(i)
-		value := "aboubakr-essaddik" + strconv.Itoa(i)
-		_ = cache.Store(key, value, time.Second*10)
+	keys := make([]string, NumKeys)
+	values := make([]string, NumKeys)
+	for i := 0; i < NumKeys; i++ {
+		keys[i] = "key_" + strconv.Itoa(i)
+		values[i] = randomValue(ValueSize)
 	}
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		key := "kouhadi" + strconv.Itoa(i%1000) // Cycle through the keys
-		_, _, _ = cache.Fetch(key)
-	}
-}
-
-// measuring the performance of concurrent Store and Fetch operations.
-func BenchmarkStoreAndFetch(b *testing.B) {
-	cache := NewCache(5, 10000, time.Minute)
 
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
-		i := 0
+		rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 		for pb.Next() {
-			key := "kouhadi" + strconv.Itoa(i)
-			value := "aboubakr-essaddik" + strconv.Itoa(i)
-			_ = cache.Store(key, value, time.Second*10)
-			_, _, _ = cache.Fetch(key)
-			i++
+			idx := rnd.Intn(NumKeys)
+			cache.Store(keys[idx], values[idx], time.Minute)
 		}
 	})
 }
 
-// measuring the performance of the LRU eviction logic.
-func BenchmarkEvictLRU(b *testing.B) {
-	// 1 shard, max 10000 items per shard
-	cache := NewCache(1, 10000, time.Minute)
+// Benchmark fetching heavy data
+func BenchmarkFetchHeavy(b *testing.B) {
+	cache := NewCache(16, NumKeys, time.Minute)
 
-	// insert in the cache some data
-	for i := 0; i < 1000; i++ {
-		key := "kouhadi" + strconv.Itoa(i)
-		value := "aboubakr-essaddik" + strconv.Itoa(i)
-		_ = cache.Store(key, value, time.Second*10)
+	keys := make([]string, NumKeys)
+	values := make([]string, NumKeys)
+	for i := 0; i < NumKeys; i++ {
+		keys[i] = "key_" + strconv.Itoa(i)
+		values[i] = randomValue(ValueSize)
+		cache.Store(keys[i], values[i], time.Minute)
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		key := "kouhadi" + strconv.Itoa(1000+i) // Add some new data to trigger eviction :)
-		value := "aboubakr-essaddik" + strconv.Itoa(1000+i)
-		_ = cache.Store(key, value, time.Second*10)
-	}
+	b.RunParallel(func(pb *testing.PB) {
+		rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
+		for pb.Next() {
+			idx := rnd.Intn(NumKeys)
+			cache.Fetch(keys[idx])
+		}
+	})
 }
 
-// measuring the update of data
-func BenchmarkUpdate(b *testing.B) {
-	cache := NewCache(10, 1000, time.Minute)
+// Benchmark mixed concurrent Store + Fetch + Delete + Update
+func BenchmarkConcurrentHeavy(b *testing.B) {
+	cache := NewCache(16, NumKeys, time.Minute)
 
-	// Store a value to update later
-	err := cache.Store("foo", "bar", time.Minute)
-	if err != nil {
-		b.Fatalf("Store failed: %v", err)
+	keys := make([]string, NumKeys)
+	values := make([]string, NumKeys)
+	for i := 0; i < NumKeys; i++ {
+		keys[i] = "key_" + strconv.Itoa(i)
+		values[i] = randomValue(ValueSize)
+		cache.Store(keys[i], values[i], time.Minute)
 	}
 
-	b.ResetTimer() // Reset the timer to exclude setup time
-
-	for i := 0; i < b.N; i++ {
-		err := cache.Update("foo", "baz", time.Minute)
-		if err != nil {
-			b.Fatalf("Update failed: %v", err)
-		}
-	}
-}
-
-// measuring the deletion of data
-
-func BenchmarkDelete(b *testing.B) {
-	cache := NewCache(10, 1000, time.Minute)
-
-	// Pre-fill the cache with keys to delete
-	keys := make([]string, b.N)
-	for i := 0; i < b.N; i++ {
-		keys[i] = fmt.Sprintf("key%d", i)
-		err := cache.Store(keys[i], "value", time.Minute)
-		if err != nil {
-			b.Fatalf("Store failed: %v", err)
-		}
-	}
-
-	b.ResetTimer() // Reset the timer to exclude setup time
-
-	for i := 0; i < b.N; i++ {
-		cache.Delete(keys[i])
-	}
-}
-
-// measuring the concurrent deletion and update of data
-func BenchmarkConcurrentUpdateDelete(b *testing.B) {
-	cache := NewCache(10, 1000, time.Minute)
-
-	// Pre-fill the cache with keys
-	keys := make([]string, b.N)
-	for i := 0; i < b.N; i++ {
-		keys[i] = fmt.Sprintf("key%d", i)
-		err := cache.Store(keys[i], "value", time.Minute)
-		if err != nil {
-			b.Fatalf("Store failed: %v", err)
-		}
-	}
-
-	b.ResetTimer() // Reset the timer to exclude setup time
-
+	b.ResetTimer()
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(Concurrency)
 
-	// Concurrently update and delete keys
-	go func() {
-		defer wg.Done()
-		for i := 0; i < b.N; i++ {
-			err := cache.Update(keys[i], "newvalue", time.Minute)
-			if err != nil {
-				b.Logf("Update failed: %v", err)
+	for i := 0; i < Concurrency; i++ {
+		go func(id int) {
+			defer wg.Done()
+			rnd := rand.New(rand.NewSource(time.Now().UnixNano() + int64(id)))
+			for j := 0; j < b.N; j++ {
+				idx := rnd.Intn(NumKeys)
+				op := rnd.Intn(4)
+				switch op {
+				case 0:
+					cache.Store(keys[idx], values[idx], time.Minute)
+				case 1:
+					cache.Fetch(keys[idx])
+				case 2:
+					cache.Update(keys[idx], values[idx], time.Minute)
+				case 3:
+					cache.Delete(keys[idx])
+				}
 			}
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		for i := 0; i < b.N; i++ {
-			cache.Delete(keys[i])
-		}
-	}()
+		}(i)
+	}
 
 	wg.Wait()
 }
 
-// measuring the cleaning up of cache
-func BenchmarkCleanupAll(b *testing.B) {
-	cache := NewCache(10, 1000, time.Minute)
+// BenchmarkIterateHeavy benchmarks Iterate under heavy load with 1M items.
+func BenchmarkIterateHeavy(b *testing.B) {
+	cache := NewCache(10, 100000, time.Minute)
 
-	// Pre-fill the cache with keys
-	for i := 0; i < 1000; i++ {
+	// Pre-fill cache with 1M items
+	numItems := 100000
+	for i := 0; i < numItems; i++ {
 		key := fmt.Sprintf("key%d", i)
-		err := cache.Store(key, "value", time.Minute)
-		if err != nil {
-			b.Fatalf("Store failed: %v", err)
-		}
+		value := []byte(fmt.Sprintf("value%d", i))
+		_ = cache.Store(key, value, time.Minute)
 	}
 
-	b.ResetTimer() // Reset the timer to exclude setup time
-
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		cache.CleanupAll()
+		cache.Iterate(func(key string, value []byte) {
+			// no-op, just iterate
+		})
 	}
 }
 
-// measuring fetch all data at once
-func BenchmarkFetchAll(b *testing.B) {
-	cache := NewCache(10, 1000, time.Minute)
+// Benchmark cleanup of all items under heavy load
+func BenchmarkCleanupAllHeavy(b *testing.B) {
+	cache := NewCache(16, NumKeys, time.Minute)
 
-	// Pre-fill the cache with keys
-	for i := 0; i < 1000; i++ {
-		key := fmt.Sprintf("key%d", i)
-		err := cache.Store(key, "value", time.Minute)
-		if err != nil {
-			b.Fatalf("Store failed: %v", err)
-		}
+	for i := 0; i < NumKeys; i++ {
+		key := fmt.Sprintf("key_%d", i)
+		value := randomValue(ValueSize)
+		cache.Store(key, value, time.Minute)
 	}
 
-	b.ResetTimer() // Reset the timer to exclude setup time
-
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		cache.FetchAll()
+		cache.CleanupAll()
 	}
 }

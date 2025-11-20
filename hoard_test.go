@@ -2,6 +2,7 @@ package hoard
 
 import (
 	"fmt"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -315,36 +316,29 @@ func TestCleanupAllParallel(t *testing.T) {
 	}
 }
 
-// testing fetching all data at once
-func TestFetchAll(t *testing.T) {
-	cache := NewCache(10, 1000, time.Minute)
+// testing Iterate
+// TestIterate ensures that Iterate visits all items in the cache.
+func TestIterate(t *testing.T) {
+	cache := NewCache(10, 10000, time.Minute)
 
-	// Store some values
-	err := cache.Store("foo", "bar", time.Minute)
-	if err != nil {
-		t.Fatalf("Store failed: %v", err)
-	}
-	err = cache.Store("baz", "qux", time.Minute)
-	if err != nil {
-		t.Fatalf("Store failed: %v", err)
-	}
-
-	// Fetch all data
-	result := cache.FetchAll()
-
-	// Verify the results
-	expected := map[string]interface{}{
-		"foo": "bar",
-		"baz": "qux",
+	// Pre-fill cache
+	numItems := 1000
+	for i := 0; i < numItems; i++ {
+		key := "key" + strconv.Itoa(i)
+		value := []byte("value" + strconv.Itoa(i))
+		_ = cache.Store(key, value, time.Minute)
 	}
 
-	if len(result) != len(expected) {
-		t.Errorf("Expected %d items, got %d", len(expected), len(result))
-	}
+	visited := make(map[string]bool)
+	var mu sync.Mutex
 
-	for k, v := range expected {
-		if result[k] != v {
-			t.Errorf("Expected value '%v' for key '%s', got '%v'", v, k, result[k])
-		}
+	cache.Iterate(func(key string, value []byte) {
+		mu.Lock()
+		defer mu.Unlock()
+		visited[key] = true
+	})
+
+	if len(visited) != numItems {
+		t.Fatalf("Expected %d items, got %d", numItems, len(visited))
 	}
 }
