@@ -91,5 +91,5 @@ func main() {
 	} else {
 		fmt.Println("test does not exist or has expired or deleted...")
 	}
-	fmt.Print("END")
+	fmt.Println("END")
 }
