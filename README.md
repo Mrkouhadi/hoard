@@ -48,9 +48,6 @@ func main() {
 	cache.Store("profession", "English Teacher", time.Second*5)
 	cache.Store("hobbies", "playing Guitar and soccer, swimming, and coding", time.Second*5)
 
-	// fetch all cached data
-	data := cache.FetchAll()
-
 	// fetch a single piece of data
 	if value, exists, err := cache.Fetch("name"); exists {
 		if err == nil {
@@ -84,7 +81,7 @@ Hoard is optimized for **low latency** and **high throughput**. Here are the ben
 
 ## Benchmarks
 
-Here are the latest benchmark results for the caching library on **Apple M1**:
+Here are the latest benchmark results on **Apple M1**:
 | Benchmark                         | Time per Operation | Memory Allocation | Allocations per Operation |
 | --------------------------------- | ------------------ | ----------------- | ------------------------- |
 | **Store**                         | 902.9 ns/op        | 552 B/op          | 9 allocs/op               |
