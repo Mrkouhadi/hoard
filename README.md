@@ -85,18 +85,14 @@ Hoard is optimized for **low latency** and **high throughput**. Here are the ben
 ## Benchmarks
 
 Here are the latest benchmark results for the caching library on **Apple M1**:
+| Benchmark                         | Time per Operation | Memory Allocation | Allocations per Operation |
+| --------------------------------- | ------------------ | ----------------- | ------------------------- |
+| **Store**                         | 902.9 ns/op        | 552 B/op          | 9 allocs/op               |
+| **Fetch**                         | 762.7 ns/op        | 355 B/op          | 6 allocs/op               |
+| **StoreAndFetch / Concurrent**    | 134.2 µs/op        | 19.47 KB/op       | 349 allocs/op             |
+| **Iterate** 						| 1.364 ms/op        | 577 B/op          | 21 allocs/op              |
+| **CleanupAll**                    | 422.8 ns/op        | 0 B/op            | 0 allocs/op               |
 
-| Benchmark                  | Time per Operation | Memory Allocation | Allocations per Operation |
-| -------------------------- | ------------------ | ----------------- | ------------------------- |
-| **Store**                  | 922.1 ns/op        | 317 B/op          | 12 allocs/op              |
-| **Fetch**                  | 515.2 ns/op        | 127 B/op          | 6 allocs/op               |
-| **StoreAndFetch**          | 967.8 ns/op        | 440 B/op          | 17 allocs/op              |
-| **EvictLRU**               | 842.7 ns/op        | 314 B/op          | 12 allocs/op              |
-| **Update**                 | 298.3 ns/op        | 128 B/op          | 4 allocs/op               |
-| **Delete**                 | 142.2 ns/op        | 19 B/op           | 2 allocs/op               |
-| **ConcurrentUpdateDelete** | 1.999 µs/op        | 1.638 KB/op       | 18 allocs/op              |
-| **CleanupAll**             | 249.0 ns/op        | 0 B/op            | 0 allocs/op               |
-| **FetchAll**               | 362.5 µs/op        | 245.7 KB/op       | 4.022 K allocs/op         |
 
 ### Concurrent Access
 
