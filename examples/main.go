@@ -78,7 +78,7 @@ func main() {
 	cache.Iterate(func(key string, value []byte) {
 		fmt.Printf("key: %s -  Value: %s", key, string(value))
 	})
-	
+
 	// store again some data
 	cache.Store("test", "automatic deletion after expiration", time.Second)
 	// wait for some time and

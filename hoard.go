@@ -159,9 +159,27 @@ func (c *Cache) Delete(key string) {
 		cacheItemPool.Put(item)
 	}
 }
+// Iterate
+func (c *Cache) Iterate(fn func(key string, value []byte)) {
+	now := time.Now().UnixNano()
+	var wg sync.WaitGroup
+	wg.Add(len(c.shards))
 
+	for _, shard := range c.shards {
+		go func(s *CacheShard) {
+			defer wg.Done()
+			s.mu.RLock()
+			for k, item := range s.data {
+				if now <= item.Expiration {
+					fn(k, item.Value)
+				}
+			}
+			s.mu.RUnlock()
+		}(shard)
+	}
+	wg.Wait()
+}
 //  Cleanup
-
 func (c *Cache) startCleanup() {
 	ticker := time.NewTicker(c.cleanupInterval)
 	defer ticker.Stop()
@@ -184,27 +202,7 @@ func (c *Cache) cleanupShard(shard *CacheShard) {
 	}
 }
 
-//  Iterate
 
-func (c *Cache) Iterate(fn func(key string, value []byte)) {
-	now := time.Now().UnixNano()
-	var wg sync.WaitGroup
-	wg.Add(len(c.shards))
-
-	for _, shard := range c.shards {
-		go func(s *CacheShard) {
-			defer wg.Done()
-			s.mu.RLock()
-			for k, item := range s.data {
-				if now <= item.Expiration {
-					fn(k, item.Value)
-				}
-			}
-			s.mu.RUnlock()
-		}(shard)
-	}
-	wg.Wait()
-}
 
 //  CleanupAll
 
