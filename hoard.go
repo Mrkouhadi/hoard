@@ -67,7 +67,7 @@ func (c *Cache) Store(key string, value interface{}, ttl time.Duration) error {
 	shard := c.getShard(key)
 	exp := time.Now().Add(ttl).UnixNano()
 
-	val, err := serialize(value)
+	val, err := Serialize(value)
 	if err != nil {
 		return err
 	}
@@ -98,37 +98,42 @@ func (c *Cache) Store(key string, value interface{}, ttl time.Duration) error {
 	return nil
 }
 
-func (c *Cache) Fetch(key string) (interface{}, bool, error) {
+// fetching data
+func (c *Cache) FetchBytesData(key string) ([]byte, bool) {
 	shard := c.getShard(key)
 
-	shard.mu.Lock() // combine RLock + Lock into a single Lock
+	shard.mu.Lock()
 	defer shard.mu.Unlock()
 
 	item, ok := shard.data[key]
 	if !ok {
-		return nil, false, nil
+		return nil, false
 	}
 
 	if time.Now().UnixNano() > item.Expiration {
-		// Remove expired item immediately
 		shard.lruList.Remove(item.LRUElement)
 		delete(shard.data, key)
-		return nil, false, nil
+		return nil, false
 	}
 
-	// Move to front in the same lock
 	shard.lruList.MoveToFront(item.LRUElement)
-
-	// Deserialize outside the lock to reduce contention if value is large
-	value, err := deserialize(item.Value)
-	return value, true, err
+	return item.Value, true
+}
+func (c *Cache) FetchData(key string) (interface{}, bool, error) {
+	var zero interface{}
+	data, ok := c.FetchBytesData(key)
+	if !ok {
+		return zero, false, nil
+	}
+	val, err := Deserialize(data)
+	return val, true, err
 }
 
 func (c *Cache) Update(key string, value interface{}, ttl time.Duration) error {
 	shard := c.getShard(key)
 	exp := time.Now().Add(ttl).UnixNano()
 
-	val, err := serialize(value)
+	val, err := Serialize(value)
 	if err != nil {
 		return err
 	}
@@ -159,6 +164,7 @@ func (c *Cache) Delete(key string) {
 		cacheItemPool.Put(item)
 	}
 }
+
 // Iterate
 func (c *Cache) Iterate(fn func(key string, value []byte)) {
 	now := time.Now().UnixNano()
@@ -179,7 +185,8 @@ func (c *Cache) Iterate(fn func(key string, value []byte)) {
 	}
 	wg.Wait()
 }
-//  Cleanup
+
+// Cleanup
 func (c *Cache) startCleanup() {
 	ticker := time.NewTicker(c.cleanupInterval)
 	defer ticker.Stop()
@@ -201,8 +208,6 @@ func (c *Cache) cleanupShard(shard *CacheShard) {
 		}
 	}
 }
-
-
 
 //  CleanupAll
 

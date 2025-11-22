@@ -19,7 +19,7 @@ func TestStoreAndFetch(t *testing.T) {
 	}
 
 	// Fetch the item
-	value, exists, err := cache.Fetch("bakr")
+	value, exists, err := cache.FetchData("bakr")
 	if err != nil {
 		t.Fatalf("Fetch failed: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestExpiration(t *testing.T) {
 	}
 
 	// Fetch the item immediately (should exist)
-	value, exists, err := cache.Fetch("aboubakr")
+	value, exists, err := cache.FetchData("aboubakr")
 	if err != nil {
 		t.Fatalf("Fetch failed: %v", err)
 	}
@@ -57,10 +57,7 @@ func TestExpiration(t *testing.T) {
 	time.Sleep(3 * time.Second)
 
 	// Fetch the item again (should not exist)
-	_, exists, err = cache.Fetch("aboubakr")
-	if err != nil {
-		t.Fatalf("Fetch failed: %v", err)
-	}
+	_, exists = cache.FetchBytesData("aboubakr")
 	if exists {
 		t.Fatal("Expected item to be expired")
 	}
@@ -81,10 +78,7 @@ func TestLRUEviction(t *testing.T) {
 	}
 
 	// Fetch "aboubakr" to make it recently used
-	_, _, err = cache.Fetch("aboubakr")
-	if err != nil {
-		t.Fatalf("Fetch failed: %v", err)
-	}
+	_, _ = cache.FetchBytesData("aboubakr")
 
 	// Store a third item (should evict "kouhadi" as it is the least recently used)
 	err = cache.Store("qux", 3.14, time.Second*10)
@@ -93,16 +87,13 @@ func TestLRUEviction(t *testing.T) {
 	}
 
 	// Fetch "kouhadi" (should not exist)
-	_, exists, err := cache.Fetch("kouhadi")
-	if err != nil {
-		t.Fatalf("Fetch failed: %v", err)
-	}
+	_, exists := cache.FetchBytesData("kouhadi")
 	if exists {
 		t.Fatal("Expected 'kouahdi' to be evicted")
 	}
 
 	// Fetch "aboubakr" (should still exist)
-	value, exists, err := cache.Fetch("aboubakr")
+	value, exists, err := cache.FetchData("aboubakr")
 	if err != nil {
 		t.Fatalf("Fetch failed: %v", err)
 	}
@@ -114,7 +105,7 @@ func TestLRUEviction(t *testing.T) {
 	}
 
 	// Fetch "qux" (should exist)
-	value, exists, err = cache.Fetch("qux")
+	value, exists, err = cache.FetchData("qux")
 	if err != nil {
 		t.Fatalf("Fetch failed: %v", err)
 	}
@@ -140,10 +131,7 @@ func TestCleanup(t *testing.T) {
 	time.Sleep(3 * time.Second)
 
 	// Fetch the item (should not exist)
-	_, exists, err := cache.Fetch("aboubakr")
-	if err != nil {
-		t.Fatalf("Fetch failed: %v", err)
-	}
+	_, exists := cache.FetchBytesData("aboubakr")
 	if exists {
 		t.Fatal("Expected item to be expired and removed by cleanup")
 	}
@@ -169,7 +157,7 @@ func TestConcurrentAccess(t *testing.T) {
 			}
 
 			// Fetch the item
-			fetchedValue, exists, err := cache.Fetch(key)
+			fetchedValue, exists, err := cache.FetchData(key)
 			if err != nil {
 				t.Errorf("Fetch failed: %v", err)
 				return
@@ -203,7 +191,7 @@ func TestUpdate(t *testing.T) {
 	}
 
 	// Fetch the updated value
-	value, exists, err := cache.Fetch("haroun")
+	value, exists, err := cache.FetchData("haroun")
 	if err != nil {
 		t.Fatalf("Fetch failed: %v", err)
 	}
@@ -235,7 +223,7 @@ func TestDelete(t *testing.T) {
 	cache.Delete("haroun")
 
 	// Fetch the deleted value
-	value, exists, err := cache.Fetch("haroun")
+	value, exists := cache.FetchBytesData("haroun")
 	if err != nil {
 		t.Fatalf("Fetch failed: %v", err)
 	}
@@ -280,7 +268,7 @@ func TestConcurrentUpdateDelete(t *testing.T) {
 	wg.Wait()
 
 	// Fetch the key to check the final state
-	value, exists, err := cache.Fetch("haroun")
+	value, exists, err := cache.FetchData("haroun")
 	if err != nil {
 		t.Fatalf("Fetch failed: %v", err)
 	}
@@ -306,7 +294,7 @@ func TestCleanupAllParallel(t *testing.T) {
 	// Verify that the cache is empty
 	for i := 0; i < 1000; i++ {
 		key := fmt.Sprintf("key%d", i)
-		value, exists, err := cache.Fetch(key)
+		value, exists, err := cache.FetchData(key)
 		if err != nil {
 			t.Fatalf("Fetch failed: %v", err)
 		}
@@ -316,7 +304,6 @@ func TestCleanupAllParallel(t *testing.T) {
 	}
 }
 
-// testing Iterate
 // TestIterate ensures that Iterate visits all items in the cache.
 func TestIterate(t *testing.T) {
 	cache := NewCache(10, 10000, time.Minute)

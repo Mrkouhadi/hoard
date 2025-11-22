@@ -18,13 +18,13 @@ func main() {
 	cache.Store("profession", "English Teacher", time.Second*5)
 	cache.Store("hobbies", "playing Guitar and soccer, swimming, and coding", time.Second*5)
 
-	// fetch all data
+	// iterate fetches all data
 	cache.Iterate(func(key string, value []byte) {
-		fmt.Printf("key %s - Value %s", key, string(value))
+		fmt.Printf("key: %s -  Value: %s", key, string(value))
 	})
 
 	// fetch a single piece of data
-	if value, exists, err := cache.Fetch("name"); exists {
+	if value, exists, err := cache.FetchData("name"); exists {
 		if err == nil {
 			fmt.Println("Fetched name: ", value)
 		} else {
@@ -41,7 +41,7 @@ func main() {
 	}
 
 	// fetch the updated value name
-	if value, exists, err := cache.Fetch("name"); exists {
+	if value, exists, err := cache.FetchData("name"); exists {
 		if err == nil {
 			fmt.Println("Fetched updated name:", value)
 		} else {
@@ -50,41 +50,33 @@ func main() {
 	} else {
 		fmt.Println("name does not exist or has expired or deleted...")
 	}
-
+	// fetch bytes (serialized data)
+	if value, exists := cache.FetchBytesData("name"); exists {
+		fmt.Printf("fetched bytes name: %v", value)
+	} else {
+		fmt.Println("name does not exist or has expired or deleted...")
+	}
 	// Delete the value
 	cache.Delete("profession")
+	fmt.Println("profession has been deleted...")
 
-	// fetch the deleted value profession
-	if value, exists, err := cache.Fetch("profession"); exists {
-		if err == nil {
-			fmt.Println("Fetched profession after it's been deleted:", value)
-		} else {
-			fmt.Println("Error fetching profession:", err)
-		}
-	} else {
-		fmt.Println("profession does not exist or has expired or deleted...")
-	}
 	// clean up all data
 	cache.CleanupAll()
 	fmt.Println("data has been cleaned up....")
+
 	// fetch age after clean up all data
-	value, exists, err := cache.Fetch("age")
+	value, exists, err := cache.FetchData("age")
 	if err != nil {
 		fmt.Println("Fetch error:", err)
 	}
 	fmt.Println(value, exists)
-
-	// fetch all data after cleanup
-	cache.Iterate(func(key string, value []byte) {
-		fmt.Printf("key: %s -  Value: %s", key, string(value))
-	})
 
 	// store again some data
 	cache.Store("test", "automatic deletion after expiration", time.Second)
 	// wait for some time and
 	time.Sleep(time.Millisecond * 1200)
 	// fetch expired data
-	if value, exists, err := cache.Fetch("test"); exists {
+	if value, exists, err := cache.FetchData("test"); exists {
 		if err == nil {
 			fmt.Println("Fetched expired test:", value)
 		} else {

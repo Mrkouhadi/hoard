@@ -47,7 +47,7 @@ func BenchmarkStoreHeavy(b *testing.B) {
 }
 
 // Benchmark fetching heavy data
-func BenchmarkFetchHeavy(b *testing.B) {
+func BenchmarkFetchDataHeavy(b *testing.B) {
 	cache := NewCache(16, NumKeys, time.Minute)
 
 	keys := make([]string, NumKeys)
@@ -63,12 +63,32 @@ func BenchmarkFetchHeavy(b *testing.B) {
 		rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
 		for pb.Next() {
 			idx := rnd.Intn(NumKeys)
-			cache.Fetch(keys[idx])
+			cache.FetchData(keys[idx])
+		}
+	})
+}
+func BenchmarkFetchBytesDataHeavy(b *testing.B) {
+	cache := NewCache(16, NumKeys, time.Minute)
+
+	keys := make([]string, NumKeys)
+	values := make([]string, NumKeys)
+	for i := 0; i < NumKeys; i++ {
+		keys[i] = "key_" + strconv.Itoa(i)
+		values[i] = randomValue(ValueSize)
+		cache.Store(keys[i], values[i], time.Minute)
+	}
+
+	b.ResetTimer()
+	b.RunParallel(func(pb *testing.PB) {
+		rnd := rand.New(rand.NewSource(time.Now().UnixNano()))
+		for pb.Next() {
+			idx := rnd.Intn(NumKeys)
+			cache.FetchBytesData(keys[idx])
 		}
 	})
 }
 
-// Benchmark mixed concurrent Store + Fetch + Delete + Update
+// Benchmark mixed concurrent Store + FetchData + FetchBytesData + Delete + Update
 func BenchmarkConcurrentHeavy(b *testing.B) {
 	cache := NewCache(16, NumKeys, time.Minute)
 
@@ -90,15 +110,17 @@ func BenchmarkConcurrentHeavy(b *testing.B) {
 			rnd := rand.New(rand.NewSource(time.Now().UnixNano() + int64(id)))
 			for j := 0; j < b.N; j++ {
 				idx := rnd.Intn(NumKeys)
-				op := rnd.Intn(4)
+				op := rnd.Intn(5)
 				switch op {
 				case 0:
 					cache.Store(keys[idx], values[idx], time.Minute)
 				case 1:
-					cache.Fetch(keys[idx])
+					cache.FetchData(keys[idx])
 				case 2:
-					cache.Update(keys[idx], values[idx], time.Minute)
+					cache.FetchBytesData(keys[idx])
 				case 3:
+					cache.Update(keys[idx], values[idx], time.Minute)
+				case 4:
 					cache.Delete(keys[idx])
 				}
 			}
